@@ -1,0 +1,24 @@
+[package]
+exclude = ["target/"]
+name = "scanstate"
+version = "0.1.1"
+edition = "2021"
+rust-version = "1.70"
+license = "MIT"
+repository = "https://github.com/santhsecurity/scanstate"
+authors = ["Corum Collective LLC <engineering@corumcollective.com>"]
+description = "Generic scan checkpoint, journal, and progress primitives for pause/resume workflows"
+readme = "README.md"
+keywords = ["checkpoint", "resume", "scanner", "crash-recovery", "journal"]
+categories = ["data-structures"]
+documentation = "https://docs.rs/scanstate"
+homepage = "https://santh.io"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
