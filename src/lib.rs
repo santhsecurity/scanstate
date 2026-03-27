@@ -53,12 +53,15 @@ impl Checkpointable for checkpoint::ScanCheckpoint {
 }
 
 /// Load a checkpoint from file, or create a new empty one if the file doesn't exist.
-pub fn load_or_new(path: impl AsRef<std::path::Path>, scan_id: &str) -> Result<checkpoint::ScanCheckpoint, ScanStateError> {
+pub fn load_or_new(
+    path: impl AsRef<std::path::Path>,
+    scan_id: &str,
+) -> Result<checkpoint::ScanCheckpoint, ScanStateError> {
     match checkpoint::ScanCheckpoint::load(&path) {
         Ok(cp) => Ok(cp),
         Err(ScanStateError::Io { source, .. }) if source.kind() == std::io::ErrorKind::NotFound => {
             Ok(checkpoint::ScanCheckpoint::new(scan_id))
-        },
+        }
         Err(e) => Err(e),
     }
 }

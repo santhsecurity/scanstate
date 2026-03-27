@@ -56,7 +56,11 @@ impl ScanProgress {
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
     pub fn rate(&self) -> f64 {
-        let elapsed = if let Ok(d) = self.start_time.elapsed() { d.as_secs_f64() } else { 0.0 };
+        let elapsed = if let Ok(d) = self.start_time.elapsed() {
+            d.as_secs_f64()
+        } else {
+            0.0
+        };
         if elapsed <= f64::EPSILON {
             return 0.0;
         }

@@ -41,20 +41,36 @@ impl WriteAheadJournal {
     pub fn append(&self, entry: &Entry) -> Result<(), ScanStateError> {
         if let Some(parent) = self.path.parent() {
             if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent).map_err(|e| ScanStateError::Io { path: parent.to_path_buf(), source: e })?;
+                fs::create_dir_all(parent).map_err(|e| ScanStateError::Io {
+                    path: parent.to_path_buf(),
+                    source: e,
+                })?;
             }
         }
 
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&self.path).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
-        FileExt::lock_exclusive(&file).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+            .open(&self.path)
+            .map_err(|e| ScanStateError::Io {
+                path: self.path.clone(),
+                source: e,
+            })?;
+        FileExt::lock_exclusive(&file).map_err(|e| ScanStateError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
 
         let mut buf = serde_json::to_vec(entry)?;
         buf.push(b'\n');
-        file.write_all(&buf).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
-        file.sync_all().map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+        file.write_all(&buf).map_err(|e| ScanStateError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
+        file.sync_all().map_err(|e| ScanStateError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
         Ok(())
     }
 
@@ -71,13 +87,29 @@ impl WriteAheadJournal {
             return Ok(Vec::new());
         }
 
-        let file = OpenOptions::new().read(true).open(&self.path).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
-        FileExt::lock_shared(&file).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+        let file = OpenOptions::new()
+            .read(true)
+            .open(&self.path)
+            .map_err(|e| ScanStateError::Io {
+                path: self.path.clone(),
+                source: e,
+            })?;
+        FileExt::lock_shared(&file).map_err(|e| ScanStateError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
         let mut reader = BufReader::new(file);
         let mut entries = Vec::new();
         let mut buf = Vec::new();
 
-        while reader.read_until(b'\n', &mut buf).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })? > 0 {
+        while reader
+            .read_until(b'\n', &mut buf)
+            .map_err(|e| ScanStateError::Io {
+                path: self.path.clone(),
+                source: e,
+            })?
+            > 0
+        {
             if buf.iter().all(|b| b.is_ascii_whitespace()) {
                 buf.clear();
                 continue;
@@ -102,14 +134,30 @@ impl WriteAheadJournal {
             return Ok((Vec::new(), 0));
         }
 
-        let file = OpenOptions::new().read(true).open(&self.path).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
-        FileExt::lock_shared(&file).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+        let file = OpenOptions::new()
+            .read(true)
+            .open(&self.path)
+            .map_err(|e| ScanStateError::Io {
+                path: self.path.clone(),
+                source: e,
+            })?;
+        FileExt::lock_shared(&file).map_err(|e| ScanStateError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
         let mut reader = BufReader::new(file);
         let mut entries = Vec::new();
         let mut corrupt_count = 0;
         let mut buf = Vec::new();
 
-        while reader.read_until(b'\n', &mut buf).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })? > 0 {
+        while reader
+            .read_until(b'\n', &mut buf)
+            .map_err(|e| ScanStateError::Io {
+                path: self.path.clone(),
+                source: e,
+            })?
+            > 0
+        {
             if buf.iter().all(|b| b.is_ascii_whitespace()) {
                 buf.clear();
                 continue;
@@ -131,7 +179,10 @@ impl WriteAheadJournal {
     pub fn truncate(&self) -> Result<(), ScanStateError> {
         if let Some(parent) = self.path.parent() {
             if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent).map_err(|e| ScanStateError::Io { path: parent.to_path_buf(), source: e })?;
+                fs::create_dir_all(parent).map_err(|e| ScanStateError::Io {
+                    path: parent.to_path_buf(),
+                    source: e,
+                })?;
             }
         }
 
@@ -139,8 +190,15 @@ impl WriteAheadJournal {
             .create(true)
             .write(true)
             .truncate(true)
-            .open(&self.path).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
-        file.sync_all().map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+            .open(&self.path)
+            .map_err(|e| ScanStateError::Io {
+                path: self.path.clone(),
+                source: e,
+            })?;
+        file.sync_all().map_err(|e| ScanStateError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
         Ok(())
     }
 

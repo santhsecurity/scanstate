@@ -1,7 +1,7 @@
 //! Checkpoint persistence mechanism and JSON state definitions.
 
-use serde::{Deserialize, Serialize};
 use fs2::FileExt;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -80,7 +80,10 @@ impl CheckpointSettings {
     /// or `ScanStateError::TomlParse` if the content is not valid TOML.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, ScanStateError> {
         let p = path.as_ref();
-        let content = fs::read_to_string(p).map_err(|e| ScanStateError::Io { path: p.to_path_buf(), source: e })?;
+        let content = fs::read_to_string(p).map_err(|e| ScanStateError::Io {
+            path: p.to_path_buf(),
+            source: e,
+        })?;
         Self::from_toml(&content)
     }
 }
@@ -141,11 +144,15 @@ impl ScanCheckpoint {
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent).map_err(|e| ScanStateError::Io { path: parent.to_path_buf(), source: e })?;
+                fs::create_dir_all(parent).map_err(|e| ScanStateError::Io {
+                    path: parent.to_path_buf(),
+                    source: e,
+                })?;
             }
         }
 
-        let mut completed_targets: Vec<&str> = self.completed_targets.iter().map(|s| s.as_str()).collect();
+        let mut completed_targets: Vec<&str> =
+            self.completed_targets.iter().map(|s| s.as_str()).collect();
         completed_targets.sort_unstable();
         let json = serde_json::to_vec_pretty(&CheckpointWireOut {
             scan_id: &self.scan_id,
@@ -171,14 +178,26 @@ impl ScanCheckpoint {
                 source: e,
             })?;
             let _guard = TmpGuard(&tmp_path);
-            let mut file = fs::File::create(&tmp_path).map_err(|e| ScanStateError::Io { path: tmp_path.clone(), source: e })?;
-            file.write_all(&json).map_err(|e| ScanStateError::Io { path: tmp_path.clone(), source: e })?;
-            file.sync_data().map_err(|e| ScanStateError::Io { path: tmp_path.clone(), source: e })?;
+            let mut file = fs::File::create(&tmp_path).map_err(|e| ScanStateError::Io {
+                path: tmp_path.clone(),
+                source: e,
+            })?;
+            file.write_all(&json).map_err(|e| ScanStateError::Io {
+                path: tmp_path.clone(),
+                source: e,
+            })?;
+            file.sync_data().map_err(|e| ScanStateError::Io {
+                path: tmp_path.clone(),
+                source: e,
+            })?;
             std::mem::forget(_guard);
         }
         fs::rename(&tmp_path, path).map_err(|e| {
             let _ = fs::remove_file(&tmp_path);
-            ScanStateError::Io { path: path.to_path_buf(), source: e }
+            ScanStateError::Io {
+                path: path.to_path_buf(),
+                source: e,
+            }
         })?;
         Ok(())
     }
@@ -199,7 +218,10 @@ impl ScanCheckpoint {
             path: lock_path.clone(),
             source: e,
         })?;
-        let bytes = fs::read(p).map_err(|e| ScanStateError::Io { path: p.to_path_buf(), source: e })?;
+        let bytes = fs::read(p).map_err(|e| ScanStateError::Io {
+            path: p.to_path_buf(),
+            source: e,
+        })?;
         let wire: CheckpointWire = serde_json::from_slice(&bytes)?;
         Ok(Self {
             scan_id: wire.scan_id,
@@ -213,7 +235,10 @@ impl ScanCheckpoint {
     /// keeps `self.scan_id` unchanged and still unions the completed targets.
     pub fn merge(&mut self, other: Self) -> Result<(), ScanStateError> {
         if self.scan_id != other.scan_id {
-            return Err(ScanStateError::MergeConflict(self.scan_id.clone(), other.scan_id));
+            return Err(ScanStateError::MergeConflict(
+                self.scan_id.clone(),
+                other.scan_id,
+            ));
         }
         self.completed_targets.extend(other.completed_targets);
         Ok(())
