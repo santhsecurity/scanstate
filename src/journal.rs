@@ -1,6 +1,7 @@
 //! Write-ahead logging mechanism and structures.
 
 use crate::checkpoint::ScanStateError;
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -48,7 +49,8 @@ impl WriteAheadJournal {
             .create(true)
             .append(true)
             .open(&self.path).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
-            
+        FileExt::lock_exclusive(&file).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+
         let mut buf = serde_json::to_vec(entry)?;
         buf.push(b'\n');
         file.write_all(&buf).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
@@ -70,6 +72,7 @@ impl WriteAheadJournal {
         }
 
         let file = OpenOptions::new().read(true).open(&self.path).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+        FileExt::lock_shared(&file).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
         let mut reader = BufReader::new(file);
         let mut entries = Vec::new();
         let mut buf = Vec::new();
@@ -100,6 +103,7 @@ impl WriteAheadJournal {
         }
 
         let file = OpenOptions::new().read(true).open(&self.path).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
+        FileExt::lock_shared(&file).map_err(|e| ScanStateError::Io { path: self.path.clone(), source: e })?;
         let mut reader = BufReader::new(file);
         let mut entries = Vec::new();
         let mut corrupt_count = 0;

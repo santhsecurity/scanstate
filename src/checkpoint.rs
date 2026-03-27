@@ -1,6 +1,7 @@
 //! Checkpoint persistence mechanism and JSON state definitions.
 
 use serde::{Deserialize, Serialize};
+use fs2::FileExt;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -152,6 +153,7 @@ impl ScanCheckpoint {
         })?;
 
         let tmp_path = tmp_path_for(path);
+        let lock_path = lock_path_for(path);
         {
             use std::io::Write;
             struct TmpGuard<'a>(&'a Path);
@@ -160,6 +162,14 @@ impl ScanCheckpoint {
                     let _ = fs::remove_file(self.0);
                 }
             }
+            let lock_file = open_lock_file(&lock_path).map_err(|e| ScanStateError::Io {
+                path: lock_path.clone(),
+                source: e,
+            })?;
+            FileExt::lock_exclusive(&lock_file).map_err(|e| ScanStateError::Io {
+                path: lock_path.clone(),
+                source: e,
+            })?;
             let _guard = TmpGuard(&tmp_path);
             let mut file = fs::File::create(&tmp_path).map_err(|e| ScanStateError::Io { path: tmp_path.clone(), source: e })?;
             file.write_all(&json).map_err(|e| ScanStateError::Io { path: tmp_path.clone(), source: e })?;
@@ -180,6 +190,15 @@ impl ScanCheckpoint {
     /// or `ScanStateError::Serde` if the JSON is malformed.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, ScanStateError> {
         let p = path.as_ref();
+        let lock_path = lock_path_for(p);
+        let lock_file = open_lock_file(&lock_path).map_err(|e| ScanStateError::Io {
+            path: lock_path.clone(),
+            source: e,
+        })?;
+        FileExt::lock_shared(&lock_file).map_err(|e| ScanStateError::Io {
+            path: lock_path.clone(),
+            source: e,
+        })?;
         let bytes = fs::read(p).map_err(|e| ScanStateError::Io { path: p.to_path_buf(), source: e })?;
         let wire: CheckpointWire = serde_json::from_slice(&bytes)?;
         Ok(Self {
@@ -206,6 +225,27 @@ fn tmp_path_for(path: &Path) -> PathBuf {
     let mut new_name = path.file_name().unwrap_or_default().to_os_string();
     new_name.push(format!(".tmp-{}-{}", std::process::id(), unique_suffix));
     path.with_file_name(new_name)
+}
+
+fn lock_path_for(path: &Path) -> PathBuf {
+    let mut new_name = path.file_name().unwrap_or_default().to_os_string();
+    new_name.push(".lock");
+    path.with_file_name(new_name)
+}
+
+fn open_lock_file(path: &Path) -> std::io::Result<fs::File> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+
+    fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(path)
 }
 
 #[cfg(test)]
