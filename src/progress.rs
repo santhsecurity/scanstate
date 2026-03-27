@@ -38,21 +38,92 @@ impl ScanProgress {
     }
 
     /// Record one completed target.
+    ///
+    /// Increments the `completed` counter by 1. Call this each time
+    /// a target is successfully processed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scanstate::ScanProgress;
+    ///
+    /// let mut progress = ScanProgress::new(100);
+    /// progress.record_completed();
+    /// progress.record_completed();
+    /// assert_eq!(progress.completed, 2);
+    /// ```
     pub fn record_completed(&mut self) {
         self.completed += 1;
     }
 
     /// Record one skipped target.
+    ///
+    /// Increments the `skipped` counter by 1. Call this when a target
+    /// is intentionally skipped (e.g., filtered out or unreachable).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scanstate::ScanProgress;
+    ///
+    /// let mut progress = ScanProgress::new(100);
+    /// progress.record_skipped();
+    /// assert_eq!(progress.skipped, 1);
+    /// ```
     pub fn record_skipped(&mut self) {
         self.skipped += 1;
     }
 
     /// Add findings discovered during the scan.
+    ///
+    /// Adds the specified number of findings to the total count.
+    /// Call this when processing a target yields findings.
+    ///
+    /// # Parameters
+    ///
+    /// - `findings`: Number of findings to add to the total
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scanstate::ScanProgress;
+    ///
+    /// let mut progress = ScanProgress::new(100);
+    /// progress.record_findings(5);  // Found 5 issues on first target
+    /// progress.record_findings(3);  // Found 3 more on second target
+    /// assert_eq!(progress.findings, 8);
+    /// ```
     pub fn record_findings(&mut self, findings: usize) {
         self.findings += findings;
     }
 
     /// Current processing rate in targets per second.
+    ///
+    /// Calculates the processing rate based on completed and skipped targets
+    /// divided by elapsed time since the scan started.
+    ///
+    /// # Returns
+    ///
+    /// The rate as `f64` in targets per second. Returns `0.0` if no time
+    /// has elapsed or if no targets have been processed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scanstate::ScanProgress;
+    /// use std::thread;
+    /// use std::time::Duration;
+    ///
+    /// let mut progress = ScanProgress::new(100);
+    /// progress.record_completed();
+    /// progress.record_completed();
+    ///
+    /// // Rate calculation needs some elapsed time
+    /// thread::sleep(Duration::from_millis(100));
+    ///
+    /// let rate = progress.rate();
+    /// assert!(rate > 0.0);  // Should have processed 2 targets in ~100ms
+    /// ```
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
     pub fn rate(&self) -> f64 {
@@ -69,6 +140,35 @@ impl ScanProgress {
     }
 
     /// Estimated time remaining.
+    ///
+    /// Calculates the estimated time of arrival (ETA) based on the current
+    /// processing rate and remaining targets.
+    ///
+    /// # Returns
+    ///
+    /// A `Duration` representing the estimated time remaining. Returns
+    /// `Duration::ZERO` if the scan is complete or if the rate is too low
+    /// to make a reliable estimate.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scanstate::ScanProgress;
+    /// use std::thread;
+    /// use std::time::Duration;
+    ///
+    /// let mut progress = ScanProgress::new(100);
+    /// progress.record_completed();
+    /// progress.record_completed();
+    ///
+    /// // Allow some time to pass for rate calculation
+    /// thread::sleep(Duration::from_millis(100));
+    ///
+    /// let eta = progress.eta();
+    /// // With 2 done out of 100, and ~100ms elapsed,
+    /// // ETA should be roughly 5 seconds for remaining 98 targets
+    /// assert!(eta > Duration::ZERO);
+    /// ```
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
     pub fn eta(&self) -> Duration {
